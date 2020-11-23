@@ -11,17 +11,20 @@ using System.Threading.Tasks;
 #if !NETSTANDARD2_0
 using System.Windows.Forms;
 #endif
-using Microsoft.IdentityModel.Clients.ActiveDirectory;
 using Microsoft.SharePoint.Client;
 using OfficeDevPnP.Core.IdentityModel.TokenProviders.ADFS;
 using OfficeDevPnP.Core.Diagnostics;
 using OfficeDevPnP.Core.Utilities;
 using OfficeDevPnP.Core.Utilities.Async;
 using System.Net.Http;
-using Newtonsoft.Json.Linq;
 using OfficeDevPnP.Core.Utilities.Context;
 using System.Web;
-using System.Windows.Threading;
+using Microsoft.IdentityModel.Clients.ActiveDirectory;
+using Newtonsoft.Json.Linq;
+using ClientAssertionCertificate = Microsoft.IdentityModel.Clients.ActiveDirectory.ClientAssertionCertificate;
+using AuthenticationResult = Microsoft.IdentityModel.Clients.ActiveDirectory.AuthenticationResult;
+using AuthenticationContext = Microsoft.IdentityModel.Clients.ActiveDirectory.AuthenticationContext;
+using TokenCache = Microsoft.IdentityModel.Clients.ActiveDirectory.TokenCache;
 
 namespace OfficeDevPnP.Core
 {
@@ -408,7 +411,7 @@ namespace OfficeDevPnP.Core
         {
             var authCookiesContainer = new CookieContainer();
             var siteUri = new Uri(siteUrl);
-            
+
             var thread = new Thread(() =>
             {
                 var form = new System.Windows.Forms.Form();
@@ -440,7 +443,11 @@ namespace OfficeDevPnP.Core
                         // Get FedAuth and rtFa cookies issued by ADFS when accessing claims aware applications.
                         // - or get the EdgeAccessCookie issued by the Web Application Proxy (WAP) when accessing non-claims aware applications (Kerberos).
                         IEnumerable<string> authCookies = null;
-                        if (Regex.IsMatch(cookieString, "FedAuth", RegexOptions.IgnoreCase))
+                        if (Regex.IsMatch(cookieString, "SPOIDCRL", RegexOptions.IgnoreCase))
+                        {
+                            authCookies = cookieString.Split(',');
+                        }
+                        else if (Regex.IsMatch(cookieString, "FedAuth", RegexOptions.IgnoreCase))
                         {
                             authCookies = cookieString.Split(',').Where(c => c.StartsWith("FedAuth", StringComparison.InvariantCultureIgnoreCase) || c.StartsWith("rtFa", StringComparison.InvariantCultureIgnoreCase));
                         }
@@ -460,7 +467,7 @@ namespace OfficeDevPnP.Core
                 };
 
                 form.Focus();
-                form.ShowDialog();                
+                form.ShowDialog();
                 browser.Dispose();
             });
 
